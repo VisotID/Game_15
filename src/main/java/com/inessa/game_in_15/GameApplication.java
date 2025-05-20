@@ -15,7 +15,7 @@ public class GameApplication extends Application {
     /**
      * Инициализирует и отображает главное окно приложения.
      * @param stage Главное окно приложения
-     * @throws IOException Если возникает ошибка при загрузке FXML-файла
+     * Бросается исключение, если возникает ошибка при загрузке FXML-файла
      */
     @Override
     public void start(Stage stage) throws IOException { // Переопределяет метод start
