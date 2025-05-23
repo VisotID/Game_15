@@ -110,19 +110,18 @@ public class GameController {
     private final int COLUMNS = 4;
 
     /** Список панелей с фрагментами изображения. */
-    private List<AnchorPane> imageList = null;
+    private List<AnchorPane> imageList;
 
-    /** Список, хранящий текущий порядок фрагментов. */
-    private List<Integer> orderList = null;
-
-    /** Счетчик сделанных ходов. */
-    private int moves = 0;
+    /** Поле модели игры */
+    private GameModel model;
 
     /**
      * Инициализация
      */
     public void initialize() {
-        moveLabel.setText(String.valueOf(moves)); // Устанавливает начальное значение метки
+        model = new GameModel();
+        moveLabel.setText(String.valueOf(model.getMoves()));
+        initImageList();
     }
 
     /**
@@ -143,7 +142,9 @@ public class GameController {
      */
     private void setUpImages(List<Image> images) {
         for (int i = 0; i < images.size(); i++) { // Перебирает изображения
-            BackgroundImage backgroundImage = new BackgroundImage(images.get(i), BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.DEFAULT, new BackgroundSize(imageList.get(i).getWidth(), imageList.get(i).getHeight(), true, true, true, true)); // Создает фоновое изображение
+            BackgroundImage backgroundImage = new BackgroundImage(images.get(i), BackgroundRepeat.NO_REPEAT,
+                    BackgroundRepeat.NO_REPEAT, BackgroundPosition.DEFAULT, new BackgroundSize(imageList.get(i).getWidth(),
+                    imageList.get(i).getHeight(), true, true, true, true)); // Создает фоновое изображение
             imageList.get(i).setBackground(new Background(backgroundImage)); // Устанавливает фон панели
         }
         imageList.get(ROWS * COLUMNS - 1).setVisible(false); // Скрывает пустую панель
@@ -155,54 +156,16 @@ public class GameController {
     @FXML
     private void initGridPane() {
         grid.getChildren().clear(); // Очищает элементы сетки
-        orderList = shuffle(); // Перемешивает порядок фрагментов
+        model.shuffle(); //Перемешивает порядок фрагментов
+        List<Integer> orderList = model.getOrderList();
         for (int column = 0, i = 0; column < COLUMNS; column++) { // Перебирает столбцы
             for (int row = 0; row < ROWS; row++, i++) { // Перебирает строки
-                AnchorPane imagePane = imageList.get(i); // Получает панель
+                AnchorPane imagePane = imageList.get(orderList.get(i)); // Получает панель
                 imagePane.setDisable(false); // Включает взаимодействие
-                grid.add(imageList.get(orderList.get(i)), column, row); // Добавляет панель в сетку
+                grid.add(imagePane, column, row); // Добавляет панель в сетку
             }
         }
-    }
-
-    /**
-     * Перемешивает фрагменты изображения, обеспечивая решаемую комбинацию.
-     * @return Список с перемешанным порядком фрагментов
-     */
-    private ArrayList<Integer> shuffle() {
-        ArrayList<Integer> numbers; // Список номеров
-        do {
-            numbers = new ArrayList<>(); // Список номеров
-            for (int i = 0; i < ROWS * COLUMNS; i++) { // Перебор индексов
-                numbers.add(i); // Добавление номера фрагмента
-            }
-            Collections.shuffle(numbers); // Перемешивает список
-        } while (evenChecker(numbers) && isVictory()); // Проверка решаемости
-        return numbers; // Возвращаем перемешанный список
-    }
-
-    /**
-     * Проверяет, является ли текущая комбинация фрагментов нерешаемой.
-     * @param list Список порядка фрагментов
-     * @return true, если комбинация нерешаема, иначе false
-     */
-    private boolean evenChecker(List<Integer> list) {
-        List<Integer> temp = new ArrayList<>(); // Создает временный список
-        for (int i = 0; i < COLUMNS; i++) { // Перебирает столбцы
-            for (int j = 0; j < ROWS; j++) { // Перебирает строки
-                temp.add(list.get(i * ROWS + j)); // Перестраивает порядок
-            }
-        }
-        int sum = 0; // Счетчик
-        for (int i = 0; i < temp.size(); i++) { // Перебирает элементы
-            for (int j = i + 1; j < temp.size(); j++) { // Сравнивает с последующими
-                sum++; // Увеличиваем счетчик
-            }
-            if (temp.get(i) == 15) { // Проверяет пустую клетку
-                sum += 1 + i / COLUMNS; // Добавляет позицию пустой клетки
-            }
-        }
-        return sum % 2 == 1; // Возвращает результат проверки
+        moveLabel.setText(String.valueOf(model.getMoves()));
     }
 
     /**
@@ -210,37 +173,21 @@ public class GameController {
      * @param mouseEvent Событие клика мыши
      */
     public void cellClickAction(javafx.scene.input.MouseEvent mouseEvent) {
-        moves++; // Увеличиваем счетчик ходов
-        moveLabel.setText(String.valueOf(moves)); // Обновляем метку ходов
         AnchorPane clickedPane = (AnchorPane) mouseEvent.getSource(); // Получаем кликнутую панель
         int row = GridPane.getRowIndex(clickedPane); // Получаем строку кликнутой панели
         int column = GridPane.getColumnIndex(clickedPane); // Получаем столбец кликнутой панели
         int hiddenRow = GridPane.getRowIndex(hiddenImagePane); // Получаем строку пустой панели
         int hiddenColumn = GridPane.getColumnIndex(hiddenImagePane); // Получаем столбец пустой панели
-        if (row == hiddenRow && (column - 1 == hiddenColumn || column + 1 == hiddenColumn) ||
-                (column == hiddenColumn && (row - 1 == hiddenRow || row + 1 == hiddenRow))) { // Проверяем возможность перемещения
+        if (model.moveTile(row, column, hiddenRow, hiddenColumn)) { // Проверяем возможность перемещения
             grid.getChildren().remove(clickedPane); // Удаляем кликнутую панель
             grid.getChildren().remove(hiddenImagePane); // Удаляем пустую панель
             grid.add(clickedPane, hiddenColumn, hiddenRow); // Добавляем кликнутую панель
             grid.add(hiddenImagePane, column, row); // Добавляем пустую панель
-            Collections.swap(orderList, hiddenColumn * ROWS + hiddenRow, column * ROWS + row); // Обновляем порядок
+            moveLabel.setText(String.valueOf(model.getMoves()));
         }
-        if (isVictory()) {
+        if (model.isVictory()) {
             Victory();
         }
-    }
-
-    /**
-     * Проверяет, достигнута ли победа (все фрагменты на своих местах).
-     * @return true, если победа достигнута, иначе false
-     */
-    private boolean isVictory() {
-        for (int i = 0; i < orderList.size() - 1; i++) { // Перебирает порядок
-            if (orderList.get(i + 1) < orderList.get(i)) { // Проверяет нарушение порядка
-                return false; // Возвращает false при нарушении
-            }
-        }
-        return true; // Возвращает true при победе
     }
 
     /**
@@ -253,6 +200,7 @@ public class GameController {
         for (Node node : grid.getChildren()) { // Перебираем элементы сетки
             node.setDisable(true); // Отключаем взаимодействие
         }
+        moveLabel.setText("Победа! Шаги: " + String.valueOf(model.getMoves()));
     }
 
     /**
@@ -277,7 +225,7 @@ public class GameController {
     }
 
     /**
-     * Обрабатывает действие открытия изображения, скрывая и показывая сетку.
+     * Обрабатывает действие открытия изображения
      */
     public void openImageAction() {
         grid.setVisible(false); // Скрывает сетку
